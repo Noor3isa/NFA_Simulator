@@ -847,5 +847,149 @@ app.mainloop()
 
 
 
+import ast
+
+class NFA:
+    def __init__(self, Q, Sigma, delta, S, F):
+        self.Q = Q # a set of states
+        self.Sigma = Sigma # a set of symbols
+        self.delta = delta # a transition table
+        self.S = S # a set of start states
+        self.F = F # a set of final states
+        self.stripped = False
+    
+    def __repr__(self) -> str:
+        f"NFA(Q={self.Q}, Sigma={self.Sigma}, delta={self.delta}, S={self.S}, F={self.F})"
+
+    def do_delta(self, q, x):
+        try:
+            return self.delta[(q,x)]
+        except KeyError:
+            return set()
+    
+    def run(self, w):
+        P = self.S
+        while w!= "":
+            Pnew =  set()
+            for q in P:
+                Pnew = Pnew | self.do_delta(q, w[0])
+            w = w[1:]
+            P = Pnew
+        return (P & self.F) != set()
+    
+    def get_e_closure(self, state):
+        visited = {}
+        visited[state] = 0 
+        closure_stack = [state]
+
+        while len(closure_stack) > 0:
+            current_state = closure_stack.pop(0)
+            
+            for next_state in self.delta[(current_state, "epsilon")]:
+                
+                if next_state not in visited.keys():
+                    visited[next_state] = 0
+                    closure_stack.append(next_state)
+                    
+            visited[current_state] = 1
+        
+        return set(visited.keys())
+    
+    def is_final_state(self, state_set):
+        for s in state_set:
+            if s in self.F:
+                return True
+        return False
+
+    def remove_epsilon(self):
+        if self.stripped:
+            print("Already modified")
+            return
+        # Calculating all epsilon closures
+        eclosure = {}
+        for s in self.Q:
+            eclosure[s] = list(self.get_e_closure(s))
+
+        # Initializations
+        state_stack = []
+        initial_closure = eclosure[0]
+        state_stack.append(initial_closure)
+        new_delta = {}
+        new_q = []
+        new_q.append(set(initial_closure))
+        
+        while state_stack:
+            current = tuple(state_stack.pop(0))
+            for a in self.Sigma:
+                if a == "epsilon":
+                        continue
+                from_closure = set()
+                for s in current:
+                    from_closure = from_closure | self.delta[(s, a)]
+                to_state = set()
+                for state in from_closure:
+                    to_state = to_state | set(eclosure[state])
+                
+                if to_state and to_state not in new_q:
+                    new_q.append(to_state)
+                    state_stack.append(to_state)
+                if (current, a) not in new_delta:
+                    new_delta[(current, a)] = to_state
+        
+        new_f = set()
+        for s in new_q:
+            if self.is_final_state(s):
+                new_f.add(tuple(s))
+        
+        self.Q = new_q
+        state_index_map = {tuple(state): idx for idx, state in enumerate(self.Q)}
+        self.F = {state_index_map[final_state] for final_state in new_f}
+        indexed_new_delta = dict()
+        for state_input, transition in new_delta.items():
+            state_tuple, symbol = state_input
+            state_idx = state_index_map[state_tuple]
+            indexed_new_delta[(state_idx, symbol)] = set()
+            target_state_tuple = tuple(transition)
+            if target_state_tuple:
+                target_state_idx = state_index_map[target_state_tuple]
+                indexed_new_delta[(state_idx,symbol)] = {target_state_idx}
+            else:
+                indexed_new_delta[(state_idx,symbol)] = set()
+
+        self.delta = indexed_new_delta
+        print(f"New states: {self.Q}")
+        print(f"New transitions: {self.delta}")
+        print(f"New finals: {self.F}")
+        self.stripped = True
+        return
+
+def nfa_from_csv(csv):
+    df = pd.read_csv(csv)
+    list_of_states = sorted(df.loc[:, "state"].tolist())
+    start = {0}
+    final = {max(list_of_states)}
+    headers = df.columns.values
+    sigma = set(headers[1:])
+    delta = {}
+    for state in list_of_states:
+        for symbol in sigma:
+            next_state_string = df.loc[df["state"] == state, symbol].iloc[0]
+            if next_state_string == '-':
+                delta[(state, symbol)] = set()
+            else:
+                next_state = ast.literal_eval(next_state_string)
+                if isinstance(next_state, int):
+                    delta[(state, symbol)] = {next_state}
+                elif isinstance(next_state, (list, tuple, set)):
+                    delta[(state, symbol)] = set(next_state)
+    nfa = NFA(list_of_states, sigma, delta, start, final)
+    print(nfa.S)
+    print(nfa.F)
+    print(nfa.Q)
+    print(nfa.Sigma)
+    print(nfa.delta) 
+    return nfa
+
+
 
 
