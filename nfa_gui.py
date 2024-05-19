@@ -948,7 +948,8 @@ class NFA:
             Pnew =  set()
             for q in P:
                 Pnew = Pnew | self.do_delta(q, w[0])
-            self.path.append([w[0], P.pop()])
+            if P:
+                self.path.append([w[0], P.pop()])
             w = w[1:]
             P = Pnew
             i += 1
