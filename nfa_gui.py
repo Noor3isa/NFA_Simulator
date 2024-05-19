@@ -930,6 +930,7 @@ class NFA:
         self.S = S # a set of start states
         self.F = F # a set of final states
         self.stripped = False
+        self.path = []
     
     def __repr__(self) -> str:
         f"NFA(Q={self.Q}, Sigma={self.Sigma}, delta={self.delta}, S={self.S}, F={self.F})"
@@ -941,13 +942,16 @@ class NFA:
             return set()
     
     def run(self, w):
+        i = 0
         P = self.S
         while w!= "":
             Pnew =  set()
             for q in P:
                 Pnew = Pnew | self.do_delta(q, w[0])
+            self.path.append([w[0], P.pop()])
             w = w[1:]
             P = Pnew
+            i += 1
         return (P & self.F) != set()
     
     def get_e_closure(self, state):
@@ -1067,6 +1071,7 @@ def nfa_from_csv(csv):
 #     nfa = nfa_from_csv("transition_table.csv")
 #     nfa.remove_epsilon()
 #     match = nfa.run(string_to_test)
+#     path = nfa.path
 # except Exception as e:
 #     print("ERROR")
 #     print(str(e))
