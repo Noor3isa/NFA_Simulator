@@ -36,6 +36,162 @@ class PandasAPP():
             return None
 
 
+import ast
+
+
+class NFA:
+    def __init__(self, Q, Sigma, delta, S, F):
+        self.Q = Q  # a set of states
+        self.Sigma = Sigma  # a set of symbols
+        self.delta = delta  # a transition table
+        self.S = S  # a set of start states
+        self.F = F  # a set of final states
+        self.stripped = False
+        self.path = []
+
+    def __repr__(self) -> str:
+        f"NFA(Q={self.Q}, Sigma={self.Sigma}, delta={self.delta}, S={self.S}, F={self.F})"
+
+    def do_delta(self, q, x):
+        try:
+            return self.delta[(q, x)]
+        except KeyError:
+            return set()
+
+    def run(self, w):
+        i = 0
+        P = self.S
+        while w != "":
+            Pnew = set()
+            for q in P:
+                Pnew = Pnew | self.do_delta(q, w[0])
+            if P:
+                self.path.append([w[0], P.pop()])
+            w = w[1:]
+            P = Pnew
+            i += 1
+        return (P & self.F) != set()
+
+    def get_e_closure(self, state):
+        visited = {}
+        visited[state] = 0
+        closure_stack = [state]
+
+        while len(closure_stack) > 0:
+            current_state = closure_stack.pop(0)
+
+            for next_state in self.delta[(current_state, "epsilon")]:
+
+                if next_state not in visited.keys():
+                    visited[next_state] = 0
+                    closure_stack.append(next_state)
+
+            visited[current_state] = 1
+
+        return set(visited.keys())
+
+    def is_final_state(self, state_set):
+        for s in state_set:
+            if s in self.F:
+                return True
+        return False
+
+    def remove_epsilon(self):
+        if self.stripped:
+            print("Already modified")
+            return
+        # Calculating all epsilon closures
+        eclosure = {}
+        for s in self.Q:
+            eclosure[s] = list(self.get_e_closure(s))
+
+        # Initializations
+        state_stack = []
+        initial_closure = eclosure[0]
+        state_stack.append(initial_closure)
+        new_delta = {}
+        new_q = []
+        new_q.append(set(initial_closure))
+
+        while state_stack:
+            current = tuple(state_stack.pop(0))
+            for a in self.Sigma:
+                if a == "epsilon":
+                    continue
+                from_closure = set()
+                for s in current:
+                    from_closure = from_closure | self.delta[(s, a)]
+                to_state = set()
+                for state in from_closure:
+                    to_state = to_state | set(eclosure[state])
+
+                if to_state and to_state not in new_q:
+                    new_q.append(to_state)
+                    state_stack.append(to_state)
+                if (current, a) not in new_delta:
+                    new_delta[(current, a)] = to_state
+
+        new_f = set()
+        for s in new_q:
+            if self.is_final_state(s):
+                new_f.add(tuple(s))
+
+        self.Q = new_q
+        state_index_map = {tuple(state): idx for idx, state in enumerate(self.Q)}
+        self.F = {state_index_map[final_state] for final_state in new_f}
+        indexed_new_delta = dict()
+        for state_input, transition in new_delta.items():
+            state_tuple, symbol = state_input
+            state_idx = state_index_map[state_tuple]
+            indexed_new_delta[(state_idx, symbol)] = set()
+            target_state_tuple = tuple(transition)
+            if target_state_tuple:
+                target_state_idx = state_index_map[target_state_tuple]
+                indexed_new_delta[(state_idx, symbol)] = {target_state_idx}
+            else:
+                indexed_new_delta[(state_idx, symbol)] = set()
+
+        self.delta = indexed_new_delta
+        print(f"New states: {self.Q}")
+        print(f"New transitions: {self.delta}")
+        print(f"New finals: {self.F}")
+        self.stripped = True
+        return
+
+
+
+
+def nfa_from_csv(csv):
+    df = pd.read_csv(csv)
+    list_of_states = df.loc[:, "state"].tolist()
+    start = {0}
+    final = {max(list_of_states)}
+    headers = df.columns.values
+    sigma = set(headers[1:])
+    delta = {}
+    for state in list_of_states:
+        for symbol in sigma:
+            next_state_string = df.loc[df["state"] == state, symbol].iloc[0]
+            if next_state_string == '-':
+                delta[(state, symbol)] = set()
+            else:
+                next_state = ast.literal_eval(next_state_string)
+                if isinstance(next_state, int):
+                    delta[(state, symbol)] = {next_state}
+                elif isinstance(next_state, (list, tuple, set)):
+                    delta[(state, symbol)] = set(next_state)
+    nfa = NFA(list_of_states, sigma, delta, start, final)
+    print(nfa.S)
+    print(nfa.F)
+    print(nfa.Q)
+    print(nfa.Sigma)
+    print(nfa.delta)
+    return nfa
+
+
+
+
+
 
 class Type:
     SYMBOL = 1
@@ -722,7 +878,7 @@ def read_exp() :
 
 
     def load_dataframe() :
-
+        Matching_tree_button.configure(state="normal")
         try :
             # clear_frame_content(new_frame2)
             updated_list = group_inner_list(t[1:])
@@ -759,6 +915,7 @@ def read_exp() :
             return None
 
     def match_tree() :
+        g = graphviz.Digraph(format='png')
         try :
             # entry_box
             input_entry_box = ctk.CTkEntry(new_frame1, placeholder_text="  Write your Sequence  ", font=("Times", 16), width=175,height=25)
@@ -767,18 +924,70 @@ def read_exp() :
 
             def get_seq() :
                 input_sequence = input_entry_box.get()
-                delete_child_components(new_frame2)
+                try:
+                    text_ = ""
+                    nfa = nfa_from_csv("transition_table.csv")
+                    print("i have opend ",)
+                    nfa.remove_epsilon()
+                    match = nfa.run(input_sequence)
+                    print("match",match)
+                    if(match==True) :
+                        test_ = "accepted_path"
+                        path = nfa.path
+                        print("path",path)
+                        matching_label = ctk.CTkLabel(new_frame1, text="accepted_path", font=('Times', 14))
+                        matching_label.place(relx=0.05, rely=0.84)
+                        symbols = []
+                        current_states = []
+                        next_states = []
+                        for symbol,state in nfa.path :
+                            symbols.append(symbol)
+                            current_states.append(state)
+
+                        next_states = current_states[1:]
+                        print(symbols,current_states,next_states)
+
+                        if (len(current_states) != len(next_states)) :
+                            next_states.append(current_states[-1])
+                        print(next_states)
+
+                        # g.node_attr.update(shape='box')  # Square nodes
+                        for state in current_states:
+                            g.node(str(state), shape='box')
+                        # Add edges
+
+                        items = [current_states,symbols,next_states]
+                        print(items)
+                        for current_state ,symbol, next_state in items :
+                            print(current_state ,symbol, next_state)
+                            g.edge(current_state, next_state, label=symbol)
+
+                        # Render the graph
+                        g.render('state_diagram')
+
+
+
+                    else :
+                        test_ = "not accepted_path"
+                        matching_label = ctk.CTkLabel(new_frame1, text="not accepted_path", font=('Times', 14))
+                        matching_label.place(relx=0.05, rely=0.84)
+                        delete_child_components(new_frame2)
+
+
+                except Exception as e:
+                    print("ERROR")
+                    print(str(e))
+
 
                 # Label_of_matching:
-                matching_label = ctk.CTkLabel(new_frame2, text="", font=('Times', 12))
-                matching_label.place(relx=0.25, rely=0.25)
-                print("input_sequence",input_sequence)
-                if (input_sequence == "True"):
-                    matching_label.configure(text="have been Matched successfully!", font=("Times", 16), fg_color="green")
-                else:
-                    matching_label.configure(text="", font=("Times", 16))
+
+                # print("input_sequence",input_sequence)
+                # if (input_sequence == "True"):
+                #     matching_label.configure(text=text_, font=("Times", 16))
+                # else:
+                #     matching_label.configure(text="", font=("Times", 16))
                     # time.sleep(2)
-                    matching_label.configure(text=" Not Matched               ", font=("Times", 16), fg_color="red")
+                    # matching_label.configure(text=text_, font=("Times", 16))
 
 
 
@@ -812,6 +1021,7 @@ def read_exp() :
 
     Matching_tree_button = ctk.CTkButton(new_frame1, text="display Matching Tree", font=('Times', 16),height=30,width=150,command=match_tree)
     Matching_tree_button.place(relx=0.13, rely=0.70)
+    Matching_tree_button.configure(state="disabled")
 
     new_frame2 = ctk.CTkFrame(new_window,width=400,height=500)
     new_frame2.place(relx=0.35,rely=0)
@@ -920,161 +1130,5 @@ app.mainloop()
 
 
 
-import ast
-
-class NFA:
-    def __init__(self, Q, Sigma, delta, S, F):
-        self.Q = Q # a set of states
-        self.Sigma = Sigma # a set of symbols
-        self.delta = delta # a transition table
-        self.S = S # a set of start states
-        self.F = F # a set of final states
-        self.stripped = False
-        self.path = []
-    
-    def __repr__(self) -> str:
-        f"NFA(Q={self.Q}, Sigma={self.Sigma}, delta={self.delta}, S={self.S}, F={self.F})"
-
-    def do_delta(self, q, x):
-        try:
-            return self.delta[(q,x)]
-        except KeyError:
-            return set()
-    
-    def run(self, w):
-        i = 0
-        P = self.S
-        while w!= "":
-            Pnew =  set()
-            for q in P:
-                Pnew = Pnew | self.do_delta(q, w[0])
-            if P:
-                self.path.append([w[0], P.pop()])
-            w = w[1:]
-            P = Pnew
-            i += 1
-        return (P & self.F) != set()
-    
-    def get_e_closure(self, state):
-        visited = {}
-        visited[state] = 0 
-        closure_stack = [state]
-
-        while len(closure_stack) > 0:
-            current_state = closure_stack.pop(0)
-            
-            for next_state in self.delta[(current_state, "epsilon")]:
-                
-                if next_state not in visited.keys():
-                    visited[next_state] = 0
-                    closure_stack.append(next_state)
-                    
-            visited[current_state] = 1
-        
-        return set(visited.keys())
-    
-    def is_final_state(self, state_set):
-        for s in state_set:
-            if s in self.F:
-                return True
-        return False
-
-    def remove_epsilon(self):
-        if self.stripped:
-            print("Already modified")
-            return
-        # Calculating all epsilon closures
-        eclosure = {}
-        for s in self.Q:
-            eclosure[s] = list(self.get_e_closure(s))
-
-        # Initializations
-        state_stack = []
-        initial_closure = eclosure[0]
-        state_stack.append(initial_closure)
-        new_delta = {}
-        new_q = []
-        new_q.append(set(initial_closure))
-        
-        while state_stack:
-            current = tuple(state_stack.pop(0))
-            for a in self.Sigma:
-                if a == "epsilon":
-                        continue
-                from_closure = set()
-                for s in current:
-                    from_closure = from_closure | self.delta[(s, a)]
-                to_state = set()
-                for state in from_closure:
-                    to_state = to_state | set(eclosure[state])
-                
-                if to_state and to_state not in new_q:
-                    new_q.append(to_state)
-                    state_stack.append(to_state)
-                if (current, a) not in new_delta:
-                    new_delta[(current, a)] = to_state
-        
-        new_f = set()
-        for s in new_q:
-            if self.is_final_state(s):
-                new_f.add(tuple(s))
-        
-        self.Q = new_q
-        state_index_map = {tuple(state): idx for idx, state in enumerate(self.Q)}
-        self.F = {state_index_map[final_state] for final_state in new_f}
-        indexed_new_delta = dict()
-        for state_input, transition in new_delta.items():
-            state_tuple, symbol = state_input
-            state_idx = state_index_map[state_tuple]
-            indexed_new_delta[(state_idx, symbol)] = set()
-            target_state_tuple = tuple(transition)
-            if target_state_tuple:
-                target_state_idx = state_index_map[target_state_tuple]
-                indexed_new_delta[(state_idx,symbol)] = {target_state_idx}
-            else:
-                indexed_new_delta[(state_idx,symbol)] = set()
-
-        self.delta = indexed_new_delta
-        print(f"New states: {self.Q}")
-        print(f"New transitions: {self.delta}")
-        print(f"New finals: {self.F}")
-        self.stripped = True
-        return
-
-def nfa_from_csv(csv):
-    df = pd.read_csv(csv)
-    list_of_states = df.loc[:, "state"].tolist()
-    start = {0}
-    final = {max(list_of_states)}
-    headers = df.columns.values
-    sigma = set(headers[1:])
-    delta = {}
-    for state in list_of_states:
-        for symbol in sigma:
-            next_state_string = df.loc[df["state"] == state, symbol].iloc[0]
-            if next_state_string == '-':
-                delta[(state, symbol)] = set()
-            else:
-                next_state = ast.literal_eval(next_state_string)
-                if isinstance(next_state, int):
-                    delta[(state, symbol)] = {next_state}
-                elif isinstance(next_state, (list, tuple, set)):
-                    delta[(state, symbol)] = set(next_state)
-    nfa = NFA(list_of_states, sigma, delta, start, final)
-    print(nfa.S)
-    print(nfa.F)
-    print(nfa.Q)
-    print(nfa.Sigma)
-    print(nfa.delta) 
-    return nfa
-
-# try:
-#     nfa = nfa_from_csv("transition_table.csv")
-#     nfa.remove_epsilon()
-#     match = nfa.run(string_to_test)
-#     path = nfa.path
-# except Exception as e:
-#     print("ERROR")
-#     print(str(e))
 
 
