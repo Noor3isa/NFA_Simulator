@@ -1038,7 +1038,7 @@ class NFA:
 
 def nfa_from_csv(csv):
     df = pd.read_csv(csv)
-    list_of_states = sorted(df.loc[:, "state"].tolist())
+    list_of_states = df.loc[:, "state"].tolist()
     start = {0}
     final = {max(list_of_states)}
     headers = df.columns.values
@@ -1063,6 +1063,12 @@ def nfa_from_csv(csv):
     print(nfa.delta) 
     return nfa
 
-
+# try:
+#     nfa = nfa_from_csv("transition_table.csv")
+#     nfa.remove_epsilon()
+#     match = nfa.run(string_to_test)
+# except Exception as e:
+#     print("ERROR")
+#     print(str(e))
 
 
