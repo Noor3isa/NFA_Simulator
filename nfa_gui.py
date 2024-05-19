@@ -426,28 +426,50 @@ def positive(t):
        exit(1)
 
 
+#
+# def group_inner_list(item_list):
+#         grouped_items = []
+#         grouped_items = defaultdict(list)
+#         items = []
+#         items = item_list
+#         for sublist in items:
+#             state = sublist[0]
+#             symbol = sublist[1]
+#             next_state = int(sublist[2])
+#             grouped_items[state] = []
+#             grouped_items[state].append((symbol, next_state))
+#         # print("grouped_items",grouped_items)
+#
+#
+#         updated_list = []
+#         for state, values in grouped_items.items():
+#             symbols = list(set([symbol for symbol, _ in values]))
+#             combined_values = [next_state for _, next_state in values]
+#             # print(type(combined_values[0]))
+#             updated_list.append([state, symbols] + [combined_values])
+#
+#         return updated_list
+
 
 def group_inner_list(item_list):
-        grouped_items = []
-        grouped_items = defaultdict(list)
-        items = []
-        items = item_list
-        for sublist in items:
-            state = sublist[0]
-            symbol = sublist[1]
-            next_state = int(sublist[2])
-            grouped_items[state] = []
-            grouped_items[state].append((symbol, next_state))
+    grouped_items = defaultdict(list)
 
+    for sublist in item_list:
+        state = sublist[0]
+        symbol = sublist[1]
+        next_state = int(sublist[2])
+        # print(type(next_state))
+        grouped_items[state].append((symbol, next_state))
+        # print(grouped_items)
 
-        updated_list = []
-        for state, values in grouped_items.items():
-            symbols = list(set([symbol for symbol, _ in values]))
-            combined_values = [next_state for _, next_state in values]
-            # print(type(combined_values[0]))
-            updated_list.append([state, symbols] + [combined_values])
+    updated_list = []
+    for state, values in grouped_items.items():
+        symbols = list(set([symbol for symbol, _ in values]))
+        combined_values = [next_state for _, next_state in values]
+        # print(type(combined_values[0]))
+        updated_list.append([state, symbols] + [combined_values])
 
-        return updated_list
+    return updated_list
 
 
 def Intialize_dataframe_columns() :
@@ -507,7 +529,7 @@ def contrust_dataframe() :
     print("items", items)
     updated_item_list = []
     updated_item_list = group_inner_list(items)
-    print("updated_item_list",updated_item_list)
+    # print("updated_item_list",updated_item_list)
     first_states = set()
     last_states = set()
     # Add nodes and edges
@@ -639,6 +661,16 @@ app.geometry("500x450")
 
 
 
+#Delete all component in frame befor write on it
+def delete_child_components(child_frame):
+    # Get a list of all the child components in the child frame
+    child_components = child_frame.pack_slaves()
+
+    # Destroy each child component
+    for component in child_components:
+        component.destroy()
+
+
 
 def read_exp() :
     # take t as input
@@ -721,9 +753,49 @@ def read_exp() :
             image = ctk.CTkImage(light_image=Image.open(img_name), size=(400, 500))
             nfa_graph_image_label = ctk.CTkLabel(new_window, text="", image=image)
             nfa_graph_image_label.place(relx=0.35, rely=0)
+
         except Exception as e:
             tkinter.messagebox.showerror("Information", f"{str(e)}")
             return None
+
+    def match_tree() :
+        try :
+            # entry_box
+            input_entry_box = ctk.CTkEntry(new_frame1, placeholder_text="  Write your Sequence  ", font=("Times", 16), width=175,height=25)
+            input_entry_box.place(relx=0.05, rely=0.78)
+            # enter your input sequence
+
+            def get_seq() :
+                input_sequence = input_entry_box.get()
+                delete_child_components(new_frame2)
+
+                # Label_of_matching:
+                matching_label = ctk.CTkLabel(new_frame2, text="", font=('Times', 12))
+                matching_label.place(relx=0.25, rely=0.25)
+                print("input_sequence",input_sequence)
+                if (input_sequence == "True"):
+                    matching_label.configure(text="have been Matched successfully!", font=("Times", 16), fg_color="green")
+                else:
+                    matching_label.configure(text="", font=("Times", 16))
+                    # time.sleep(2)
+                    matching_label.configure(text=" Not Matched               ", font=("Times", 16), fg_color="red")
+
+
+
+            draw_seq_button = ctk.CTkButton(new_frame1, text="Get your Input", font=('Times', 12),
+                                                 height=30, width=50, command=get_seq)
+            draw_seq_button.place(relx=0.25, rely=0.9)
+
+            # time.sleep(2)
+            # if (input_sequence == None):
+            #     input_seq_label.configure(text="not VALID Sequence")
+            # else:
+            #     input_seq_label.configure(text="not VALID Sequence")
+
+        except Exception as e:
+            tkinter.messagebox.showerror("Information", f"{str(e)}")
+            return None
+
 
 
 
@@ -738,7 +810,7 @@ def read_exp() :
     Nfa_graph_button = ctk.CTkButton(new_frame1, text="display NFA Graph", font=('Times', 16),height=30,width=150,command=show_graph)
     Nfa_graph_button.place(relx=0.13, rely=0.55)
 
-    Matching_tree_button = ctk.CTkButton(new_frame1, text="display Matching Tree", font=('Times', 16),height=30,width=150)
+    Matching_tree_button = ctk.CTkButton(new_frame1, text="display Matching Tree", font=('Times', 16),height=30,width=150,command=match_tree)
     Matching_tree_button.place(relx=0.13, rely=0.70)
 
     new_frame2 = ctk.CTkFrame(new_window,width=400,height=500)
@@ -785,11 +857,12 @@ def read_file():
             # exit(1)
 
 
-
-    read_next_RE = ctk.CTkButton(master=app, text="NEXT RE", font=('Times', 16),command=next_re)  #TODO :, command=read_exp
-    read_next_RE.place(relx=0.65,rely=0.9)
-
-
+    if entry_box.get().strip() == "":
+        tkinter.messagebox.showerror("Information", "you did not choose file")
+    else :
+        read_next_RE = ctk.CTkButton(master=app, text="NEXT RE", font=('Times', 16),
+                                     command=next_re)  # TODO :, command=read_exp
+        read_next_RE.place(relx=0.65, rely=0.9)
 
 
 def load_data() :
@@ -806,7 +879,7 @@ def load_data() :
         tkinter.messagebox.showerror("Information", "the file you have choosen is invalid ")
         return None
     except FileNotFoundError :
-        tkinter.messagebox.showerror("Information", f"No such file as{file_path}")
+        tkinter.messagebox.showerror("Information", f"No such file as this file name")
         return None
     except Exception as e:
         tkinter.messagebox.showerror("Information", f"{str(e)}")
