@@ -920,6 +920,10 @@ def read_exp() :
             # entry_box
             input_entry_box = ctk.CTkEntry(new_frame1, placeholder_text="  Write your Sequence  ", font=("Times", 16), width=175,height=25)
             input_entry_box.place(relx=0.05, rely=0.78)
+
+            input_label = ctk.CTkEntry(new_frame2, placeholder_text="  Write your Sequence  ", font=("Times", 16),
+                                           width=175, height=25)
+            input_label.place(relx=0.05, rely=0.78)
             # enter your input sequence
 
             def get_seq() :
@@ -953,6 +957,7 @@ def read_exp() :
 
                         # g.node_attr.update(shape='box')  # Square nodes
                         for state in current_states:
+
                             g.node(str(state), shape='box')
                         # Add edges
 
@@ -966,16 +971,14 @@ def read_exp() :
                             for i in range(len(items[0]))
                         ]
 
-                        print(result)
+                        print("the accepted path is" ,result)
 
                         # Add nodes and edges
-                        # for row in result:
-                        #     g.edge(row[0], row[2], label=row[1])
-                        # for current_state ,symbol, next_state in items :
-                        #     print(current_state ,symbol, next_state)
-                        #     g.edge(current_state, next_state, label=symbol)
+                        for row in result:
+                            print(row[0],row[1],row[2])
+                            g.edge(str(row[0]),str(row[2]), label=str(" " +row[1]))
 
-                        # Render the graph
+
                         g.render('state_diagram')
 
 
@@ -990,6 +993,7 @@ def read_exp() :
                 except Exception as e:
                     print("ERROR")
                     print(str(e))
+
 
 
                 # Label_of_matching:
