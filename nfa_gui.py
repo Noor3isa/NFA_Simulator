@@ -915,16 +915,14 @@ def read_exp() :
             return None
 
     def match_tree() :
-        g = graphviz.Digraph(format='png')
         try :
+
+            g = graphviz.Digraph(format='png')
+
             # entry_box
             input_entry_box = ctk.CTkEntry(new_frame1, placeholder_text="  Write your Sequence  ", font=("Times", 16), width=175,height=25)
             input_entry_box.place(relx=0.05, rely=0.78)
 
-            input_label = ctk.CTkEntry(new_frame2, placeholder_text="  Write your Sequence  ", font=("Times", 16),
-                                           width=175, height=25)
-            input_label.place(relx=0.05, rely=0.78)
-            # enter your input sequence
 
             def get_seq() :
                 input_sequence = input_entry_box.get()
@@ -957,9 +955,8 @@ def read_exp() :
 
                         # g.node_attr.update(shape='box')  # Square nodes
                         for state in current_states:
-
                             g.node(str(state), shape='box')
-                        # Add edges
+
 
                         items = [current_states,symbols,next_states]
                         print(items)
@@ -981,6 +978,22 @@ def read_exp() :
 
                         g.render('state_diagram')
 
+                        try:
+                            # clear_frame_content(new_frame2)
+
+                            img_name = "state_diagram.png"
+                            size = Image.open(img_name).size
+
+                            # Image.resize()
+                            image = ctk.CTkImage(light_image=Image.open(img_name), size=(400, 500))
+                            input_label = ctk.CTkLabel(new_window, text="", image=image)
+                            input_label.place(relx=0.35, rely=0)
+
+                        except Exception as e:
+                            tkinter.messagebox.showerror("Information", f"{str(e)}")
+                            return None
+
+
 
 
                     else :
@@ -988,6 +1001,8 @@ def read_exp() :
                         matching_label = ctk.CTkLabel(new_frame1, text="not accepted_path", font=('Times', 14))
                         matching_label.place(relx=0.05, rely=0.84)
                         delete_child_components(new_frame2)
+                        input_label = ctk.CTkLabel(new_window, text="")
+                        input_label.place(relx=0.35, rely=0)
 
 
                 except Exception as e:
