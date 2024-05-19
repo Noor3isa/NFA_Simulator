@@ -958,9 +958,22 @@ def read_exp() :
 
                         items = [current_states,symbols,next_states]
                         print(items)
-                        for current_state ,symbol, next_state in items :
-                            print(current_state ,symbol, next_state)
-                            g.edge(current_state, next_state, label=symbol)
+
+
+
+                        result = [
+                            [sublist[i] for sublist in items]
+                            for i in range(len(items[0]))
+                        ]
+
+                        print(result)
+
+                        # Add nodes and edges
+                        # for row in result:
+                        #     g.edge(row[0], row[2], label=row[1])
+                        # for current_state ,symbol, next_state in items :
+                        #     print(current_state ,symbol, next_state)
+                        #     g.edge(current_state, next_state, label=symbol)
 
                         # Render the graph
                         g.render('state_diagram')
